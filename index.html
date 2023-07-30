@@ -7,7 +7,40 @@
 </head>
 <body>
     <h1>Webasm</h1>
+
+    <script>
+        // Function to load the Wasm module
+        async function loadWebAssembly() {
+            const response = await fetch('march.wasm'); // Replace 'march.wasm' with your actual WebAssembly file name
+            const bytes = await response.arrayBuffer();
+
+            // Provide an empty object as the Imports argument with an "env" import
+            const imports = {
+                env: {
+                    // You can add necessary functions here if required by your WebAssembly module
+                    // For example, "memory" and "table" are commonly used by Emscripten-generated modules
+                    memory: new WebAssembly.Memory({ initial: 256, maximum: 256 }),
+                    table: new WebAssembly.Table({ initial: 0, maximum: 0, element: 'anyfunc' })
+                }
+            };
+
+            const module = await WebAssembly.instantiate(bytes, imports);
+            return module.instance;
+        }
+
+        async function callSayHello() {
+            const wasmModule = await loadWebAssembly();
+            if (wasmModule.exports && wasmModule.exports.sayHello) {
+                wasmModule.exports.sayHello();
+            }
+        }
+
+        // Call the function to execute the WebAssembly code when the page loads
+        window.onload = callSayHello;
+    </script>
     
+    <script src="./march.js"></script>
+
     
 </body>
 </html>
