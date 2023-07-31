@@ -1,46 +1,148 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-</head>
-<body>
-    <h1>Webasm</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebAssembly Example</title>
+    <script async type="text/javascript" src="march.js"></script>
+  </head>
+  <body>
+    <h1>WebAssembly Example</h1>
+    <p id="output">Loading WebAssembly...</p>
+    <canvas id="canvas" ></canvas>
 
     <script>
-        // Function to load the Wasm module
-        async function loadWebAssembly() {
-            const response = await fetch('march.wasm'); // Replace 'march.wasm' with your actual WebAssembly file name
-            const bytes = await response.arrayBuffer();
+      // Loads the WebAssembly module and displays the output
+      async function displayOutput() {
+        try {
+          // Load the WebAssembly module
+          const wasmModule = await WebAssembly.instantiateStreaming(
+            fetch("march.wasm"),
+            {}
+          );
 
-            // Provide an empty object as the Imports argument with an "env" import
-            const imports = {
-                env: {
-                    // You can add necessary functions here if required by your WebAssembly module
-                    // For example, "memory" and "table" are commonly used by Emscripten-generated modules
-                    memory: new WebAssembly.Memory({ initial: 256, maximum: 256 }),
-                    table: new WebAssembly.Table({ initial: 0, maximum: 0, element: 'anyfunc' })
-                }
-            };
+          // Get the output using the exported function from WebAssembly
+          const output = wasmModule.instance.exports.main();
 
-            const module = await WebAssembly.instantiate(bytes, imports);
-            return module.instance;
+          // Update the content of the 'output' paragraph with the result
+          const outputElement = document.getElementById("output");
+          outputElement.textContent = output;
+        } catch (error) {
+          console.error("Error:", error);
+          const outputElement = document.getElementById("output");
+          outputElement.textContent =
+            "Error occurred while loading the WebAssembly module.";
         }
+      }
 
-        async function callSayHello() {
-            const wasmModule = await loadWebAssembly();
-            if (wasmModule.exports && wasmModule.exports.sayHello) {
-                wasmModule.exports.sayHello();
-            }
-        }
-
-        // Call the function to execute the WebAssembly code when the page loads
-        window.onload = callSayHello;
+      // Call the displayOutput function when the page loads
+      window.onload = displayOutput;
     </script>
-    
-    <script src="./march.js"></script>
+    <script type="text/javascript">
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl');
 
-    
-</body>
+        if (!gl) {
+            alert('WebGL is not supported by your browser.');
+        }
+
+        const vertexShaderSource = `
+            attribute vec2 position;
+            uniform mat3 transformMatrix;
+
+            void main() {
+                gl_Position = vec4(transformMatrix * vec3(position, 1.0), 1.0);
+            }
+        `;
+
+        const fragmentShaderSource = `
+            precision mediump float;
+
+            void main() {
+                gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0); // Yellow color
+            }
+        `;
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('Shader compilation error:', gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+
+            return shader;
+        }
+
+        function createProgram(gl, vertexShader, fragmentShader) {
+            const program = gl.createProgram();
+            gl.attachShader(program, vertexShader);
+            gl.attachShader(program, fragmentShader);
+            gl.linkProgram(program);
+
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                console.error('Program linking error:', gl.getProgramInfoLog(program));
+                gl.deleteProgram(program);
+                return null;
+            }
+
+            return program;
+        }
+
+        function draw() {
+            const positions = [
+                0, 0.5,
+                -0.5, -0.5,
+                0.5, -0.5,
+                -0.25, 0,
+                0.25, 0
+            ];
+
+            const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+            const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+            const program = createProgram(gl, vertexShader, fragmentShader);
+
+            if (!program) {
+                return;
+            }
+
+            const positionAttributeLocation = gl.getAttribLocation(program, 'position');
+            const transformMatrixLocation = gl.getUniformLocation(program, 'transformMatrix');
+
+            const buffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+            gl.enableVertexAttribArray(positionAttributeLocation);
+            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+
+            const time = performance.now() / 1000;
+            const angle = time;
+
+            const radius = 0.5;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+
+            const transformMatrix = [
+                Math.cos(angle), -Math.sin(angle), x,
+                Math.sin(angle), Math.cos(angle), y,
+                0, 0, 1
+            ];
+
+            gl.useProgram(program);
+            gl.uniformMatrix3fv(transformMatrixLocation, false, transformMatrix);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 5);
+
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+  </body>
 </html>
