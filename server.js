@@ -25,10 +25,10 @@ const init = async () => {
 
     server.route({
         method: 'GET',
-        path: '/march.wasm', // Define the route for the wasm file
+        path: '/index.wasm', // Define the route for the wasm file
         handler: (request, h) => {
             // Read the WebAssembly file asynchronously
-            const wasmFilePath = path.join(__dirname, 'march.wasm');
+            const wasmFilePath = path.join(__dirname, 'index.wasm');
             const wasmContent = fs.readFileSync(wasmFilePath);
 
             return h.response(wasmContent).type('application/wasm');
@@ -38,10 +38,10 @@ const init = async () => {
 
     server.route({
         method: 'GET',
-        path: '/march.js', // Define the route for the JavaScript glue code file
+        path: '/index.js', // Define the route for the JavaScript glue code file
         handler: (request, h) => {
             // Read the JavaScript glue code file asynchronously
-            const jsFilePath = path.join(__dirname, 'march.js');
+            const jsFilePath = path.join(__dirname, 'index.js');
             const jsContent = fs.readFileSync(jsFilePath, 'utf8');
 
             return h.response(jsContent).type('application/javascript');
